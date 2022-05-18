@@ -1,0 +1,237 @@
+---
+title: "Resident Survey 2021"
+author: "Ben Wallace"
+date: "May 18, 2022"
+output:
+  html_document: 
+    theme: cosmo
+    highlight: tango
+    df_print: kable
+---
+
+```{r, include = F}
+library(tidyverse)
+library(tidytext)
+```
+
+```{r include = F}
+raw_text <- readr::read_csv("rss_county2020.csv")
+`%nin%` = Negate(`%in%`)
+knitr::opts
+```
+
+```{r}
+data("stop_words")
+
+tidy_text <- raw_text %>%
+  mutate(response = str_to_lower(response),
+         response = str_replace_all(response, "�", ""),
+         response = str_replace_all(response, "  ", " "),
+         page_actual = page + 26) 
+  
+words <- tidy_text %>% 
+  unnest_tokens(input = response, output = word, token = "words") %>% 
+  anti_join(stop_words)
+
+# Most common words are related to education
+
+words %>% 
+  count(word) %>% 
+  arrange(desc(n))
+```
+
+```{r}
+filter_func <- function(input, vector) {
+ temp <- input %>% 
+    filter(str_detect(response, paste(vector, collapse = "|")))
+  return(temp)
+}
+```
+
+
+## Education and Schools
+
+```{r school}
+school <- c("schools", "school", "teacher" ,"teachers", "public-school", "education", "classes", "class", "crt", "educational", "educators", "student", "students", "dps", "homework help", "curriculum", "test scores", "GED", "no child left behind", "gifted children", "special needs")
+
+school2 <- c("school", "education", "dps")
+
+school_funding <- c("fund", "money", "invest", "underfunded", "support", "resources for schools", "budgets")
+
+school_quality <- c("better public schools", "better schools", "better education", "quality", "improve", "good education", "public school employee")
+
+altschool <- c("charter", "private", "voucher" , "magnet")
+
+school_text <- filter_func(tidy_text, school) %>% 
+  filter(response != "children should never be given back to parents who have drug/alcohol related problem and should have the potential to grow up in a healthy environment. foster parents should be required to attend parenting classes and children be required to have checkups to make sure they are healthy.")
+
+school_text2 <- filter_func(school_text, school2)
+
+funding_text <- filter_func(school_text2, school_funding)
+
+squality_text <- filter_func(school_text2, school_quality)
+
+altschool_text <- filter_func(school_text2, altschool)
+
+class_text <- school_text2 %>% filter(str_detect(response, "class size"))
+```
+
+```{r}
+teacher <- c("teacher", "teachers", "educator", "educators")
+
+teacher_pay <- c("pay", "compensation", "compensated", "money", "salary", "salaries", "take care of", "paid", "raise")
+
+teacher_quality <- c("quality", "excellent", "experience", "competent", "qualified", "no fail requirement", "better teachers", "non?performing educators", "desirable", "good teachers", "quality instructors", "teacher training", "stand out teachers", "teachers are very good", "high standards for schoolteachers", "god?fearing teachers")
+
+teacher_text <- school_text %>% 
+  filter(str_detect(response, paste(teacher, collapse = "|"))) # number of teacher-related responses
+  
+pay_text <- teacher_text %>% 
+  filter(str_detect(response, paste(teacher_pay, collapse = "|")))
+
+quality_text <- teacher_text %>% 
+  filter(str_detect(response, paste(teacher_quality, collapse = "|"))) %>% 
+  filter(!str_detect(response, "better quality of schools"))
+
+paste(teacher_text %>% 
+  filter(response %nin% pay_text$response,
+         response %nin% quality_text$response))
+```
+
+## Preschool and childcare
+
+```{r}
+prek <- c("prek", "pre-k", "pre k", "preschool", "childcare", "early childhood", "childhood development", "pre?k", "daycare")
+
+prek_text <- tidy_text %>% 
+  filter(str_detect(response, paste(prek, collapse = "|")),
+         !str_detect(response, "improve quality of schools and after school/summer camps and programs"))
+```
+
+## Safety
+
+```{r safety}
+safety <- c("clean up", "safety", "safer", "safe", "gang", "gangs", "curfew", "crime", "dangerous", "gun violence", "violence", "protection", "enforce existing codes", "enforce laws", "restorative justice", "police", "cops", "drugs", "marijuana", "bad cycle", "supervision", "juvenile support")
+
+safety_text <- tidy_text %>% 
+  filter(str_detect(response, paste(safety, collapse = "|")))
+```
+
+## Activities
+
+```{r activity}
+activities <- c("activities", "activity", "recreation", "recreational", "clubs", "club", "program", "programs", "children club", "park", "parks", "game", "games", "after school", "volunteer", "community involvement", "self-programs", "social events", "sport", "sports", "athletic", "rec center", "outdoors", "summer enrichment", "basketball", "teen related facilities", "play", "community engagement", "youth centers")
+
+parks <- c("park", "parks", "maintain our parks", "clean up the parks", "playground", "outdoors track")
+
+recreation <- c("recreational", "mingling", "clubs", "club", "games", "social events", "social program", "basketball", "athletic", "sport", "sports")
+
+afterschool <- c("after school", "school programs", "volunteer", "community involvement", "self-programs", "free programs for teens", "programs to kids", "programs for all kids", "related programs", "programs for school aged children", "youth related programs", "tutoring programs", "programs to keep", "non?academic")
+
+activities_text <- filter_func(tidy_text, activities)
+
+parks_text <- filter_func(tidy_text, parks)
+
+recreation_text <- filter_func(tidy_text, recreation)
+
+afterschool_text <- filter_func(tidy_text, afterschool)
+```
+
+## Employment
+
+```{r job}
+employment <- c("jobs", "job", "meaningful work", "work habits", "work study", "employment", "apprentice programs")
+
+employment_text <- filter_func(tidy_text, employment) %>% 
+  filter(!str_detect(response, "regular communication with public school employees"),
+         !str_detect(response, "more drug enforcement in schools"))
+```
+
+## Parents and caregivers
+
+```{r caregiver}
+caregivers <- c("parents", "parent", "parental", "parenting", "fathers", "father", "mothers", "mother", "family", "support their families", "home environment", "strong male & female model of good character")
+
+caregivers_text <- tidy_text %>% 
+  filter(str_detect(response, paste(caregivers, collapse = "|")))
+```
+
+## Social Services
+
+```{r social service}
+services <- c("social services", "student u", "mentoring", "mentor", "mentors", "mentorship", "services", "housing", "clean up the parks", "maintain our parks", "computers and internet", "mental health", "therapy", "bus", "busses", "transit", "poverty", "drive-in", "facilities", "invest in every area", "financial support", "social workers", "food", "transportation", "zoning", "translators", "panhandlers", "juvenile support")
+
+servicesgeneral <- c("social services", "juvenile support", "improve the facilities", "invest in every area", "services", "social workers", "promoting programs")
+
+foodpoverty <- c("poverty", "poor", "food", "lunch", "snack",  "meals", "computers", "internet", "financial support")
+
+transit <- c("transit", "transportation", "busses", "bus stop", "bus drivers")
+
+housing <- c("housing", "zoning")
+
+mentalhealth <- c("mental health", "therapy")
+
+mentor <- c("mentor", "mentorship", "mentors", "mentoring")
+
+services_text <- tidy_text %>% 
+  filter(str_detect(response, paste(services, collapse = "|")))
+
+gservices_text <- tidy_text %>% 
+  filter(str_detect(response, paste(servicesgeneral, collapse = "|")))
+
+recreation_text <- tidy_text %>% 
+  filter(str_detect(response, paste(recreation, collapse = "|")))
+
+# Refer to comments pushing for less government support
+foodpoverty_text <- tidy_text %>% 
+  filter(str_detect(response, paste(foodpoverty, collapse = "|")),
+         !str_detect(response, "charter schools")) 
+
+transit_text <- tidy_text %>% 
+  filter(str_detect(response, paste(transit, collapse = "|")))
+
+mentalhealth_text <- tidy_text %>% 
+  filter(str_detect(response, paste(mentalhealth, collapse = "|")))
+
+mentor_text <- tidy_text %>% 
+  filter(str_detect(response, paste(mentor, collapse = "|")))
+
+services_text %>% 
+  filter(!str_detect(response, paste(servicesgeneral, collapse = "|"))) %>% 
+  filter(!str_detect(response, paste(recreation, collapse = "|"))) %>% 
+  filter(!str_detect(response, paste(foodpoverty, collapse = "|"))) %>% 
+  filter(!str_detect(response, paste(transit, collapse = "|"))) %>% 
+  filter(!str_detect(response, paste(housing, collapse = "|"))) %>% 
+  filter(!str_detect(response, paste(mentalhealth, collapse = "|"))) %>% 
+  filter(!str_detect(response, paste(mentor, collapse = "|")))
+
+# one comment about translators not addressed here
+
+
+```
+
+## Miscellaneous
+
+```{r}
+miscellaneous <- tidy_text %>% 
+  filter(!str_detect(response, paste(activities, collapse = "|"))) %>% 
+  filter(!str_detect(response, paste(caregivers, collapse = "|"))) %>% 
+  filter(!str_detect(response, paste(employment, collapse = "|"))) %>% 
+  filter(!str_detect(response, paste(prek, collapse = "|"))) %>% 
+  filter(!str_detect(response, paste(safety, collapse = "|"))) %>% 
+  filter(!str_detect(response, paste(school, collapse = "|"))) %>% 
+  filter(!str_detect(response, paste(services, collapse = "|"))) %>% 
+  filter(!str_detect(response, "my child starts"))
+```
+
+
+Summary
+
+```{r summary table}
+tibble(`Themes` = c(`1. Increase/improve funding for public school`,
+                    `2. Subsidizing, fully-funding, or increasing access to pre-kindergarten and early education`,
+                    `3. `,),
+       `Total Mentions` = c(nrow(),
+                            nrow(prek_text))
+```
+
