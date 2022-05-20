@@ -1,33 +1,57 @@
 ---
-title: "Resident Survey 2021"
+title: "Durham County Resident Survey 2021"
+subtitle: "Question 21 Responses"
 author: "Ben Wallace"
 date: "May 18, 2022"
 output:
-  html_document: 
-    theme: cosmo
-    highlight: tango
-    df_print: kable
+  pdf_document
 ---
 
 ```{r, include = F}
 library(tidyverse)
 library(tidytext)
+library(kableExtra)
 ```
 
 ```{r include = F}
 raw_text <- readr::read_csv("rss_county2020.csv")
 `%nin%` = Negate(`%in%`)
-knitr::opts
+knitr::opts_chunk$set(echo = F, message = F)
+options(knitr.table.format = "latex") 
 ```
 
-```{r}
+```{r cleaning data}
 data("stop_words")
 
 tidy_text <- raw_text %>%
   mutate(response = str_to_lower(response),
          response = str_replace_all(response, "�", ""),
          response = str_replace_all(response, "  ", " "),
-         page_actual = page + 26) 
+         response = str_replace_all(response, "\\?", " "),
+         page_actual = page + 26,
+         page = factor(case_when(
+                          page == 1 ~ "First page",
+                          page == 2 ~ "Second page",
+                          page == 3 ~ "Third page",
+                          page == 4 ~ "Fourth page",
+                          page == 5 ~ "Fifth page",
+                          page == 6 ~ "Sixth page",
+                          page == 7 ~ "Seventh page",
+                          page == 8 ~ "Eighth page",
+                          page == 9 ~ "Nineth page",
+                          page == 10 ~ "Tenth page",
+                          page == 11 ~ "Eleventh page",
+                          page == 12 ~ "Twelfth page",
+                          page == 13 ~ "Thirteenth page",
+                          page == 14 ~ "Fourteenth page",
+                          page == 15 ~ "Fifteenth page",
+                          TRUE ~ "Sixteenth page"
+         ),
+         levels = c("First page", "Second page", "Third page",
+                    "Fourth page", "Fifth page", "Sixth page",
+                    "Seventh page", "Eighth page", "Nineth page",
+                    "Tenth page", "Eleventh page", "Twelfth page",
+                    "Thirteenth page", "Fourteenth page", "Fifteenth page", "Sixteenth page")))
   
 words <- tidy_text %>% 
   unnest_tokens(input = response, output = word, token = "words") %>% 
@@ -35,21 +59,20 @@ words <- tidy_text %>%
 
 # Most common words are related to education
 
-words %>% 
-  count(word) %>% 
-  arrange(desc(n))
+# words %>% 
+#   count(word) %>% 
+#   arrange(desc(n)) %>% rename(Word = word, Mentions = n) %>% head(10) %>%
+#   kable(format = "latex") %>% 
+#   kable_styling(latex_options = "scale_down")
 ```
 
-```{r}
+```{r write filter_func}
 filter_func <- function(input, vector) {
  temp <- input %>% 
     filter(str_detect(response, paste(vector, collapse = "|")))
   return(temp)
 }
 ```
-
-
-## Education and Schools
 
 ```{r school}
 school <- c("schools", "school", "teacher" ,"teachers", "public-school", "education", "classes", "class", "crt", "educational", "educators", "student", "students", "dps", "homework help", "curriculum", "test scores", "GED", "no child left behind", "gifted children", "special needs")
@@ -71,12 +94,13 @@ funding_text <- filter_func(school_text2, school_funding)
 
 squality_text <- filter_func(school_text2, school_quality)
 
-altschool_text <- filter_func(school_text2, altschool)
+altschool_text <- filter_func(school_text2, altschool) %>% 
+  filter(!str_detect(response, "private partnerships"))
 
 class_text <- school_text2 %>% filter(str_detect(response, "class size"))
 ```
 
-```{r}
+```{r teacher}
 teacher <- c("teacher", "teachers", "educator", "educators")
 
 teacher_pay <- c("pay", "compensation", "compensated", "money", "salary", "salaries", "take care of", "paid", "raise")
@@ -93,14 +117,12 @@ quality_text <- teacher_text %>%
   filter(str_detect(response, paste(teacher_quality, collapse = "|"))) %>% 
   filter(!str_detect(response, "better quality of schools"))
 
-paste(teacher_text %>% 
-  filter(response %nin% pay_text$response,
-         response %nin% quality_text$response))
+# paste(teacher_text %>% 
+#   filter(response %nin% pay_text$response,
+#          response %nin% quality_text$response))
 ```
 
-## Preschool and childcare
-
-```{r}
+```{r preschool}
 prek <- c("prek", "pre-k", "pre k", "preschool", "childcare", "early childhood", "childhood development", "pre?k", "daycare")
 
 prek_text <- tidy_text %>% 
@@ -108,16 +130,12 @@ prek_text <- tidy_text %>%
          !str_detect(response, "improve quality of schools and after school/summer camps and programs"))
 ```
 
-## Safety
-
 ```{r safety}
 safety <- c("clean up", "safety", "safer", "safe", "gang", "gangs", "curfew", "crime", "dangerous", "gun violence", "violence", "protection", "enforce existing codes", "enforce laws", "restorative justice", "police", "cops", "drugs", "marijuana", "bad cycle", "supervision", "juvenile support")
 
 safety_text <- tidy_text %>% 
   filter(str_detect(response, paste(safety, collapse = "|")))
 ```
-
-## Activities
 
 ```{r activity}
 activities <- c("activities", "activity", "recreation", "recreational", "clubs", "club", "program", "programs", "children club", "park", "parks", "game", "games", "after school", "volunteer", "community involvement", "self-programs", "social events", "sport", "sports", "athletic", "rec center", "outdoors", "summer enrichment", "basketball", "teen related facilities", "play", "community engagement", "youth centers")
@@ -137,17 +155,17 @@ recreation_text <- filter_func(tidy_text, recreation)
 afterschool_text <- filter_func(tidy_text, afterschool)
 ```
 
-## Employment
-
 ```{r job}
 employment <- c("jobs", "job", "meaningful work", "work habits", "work study", "employment", "apprentice programs")
+
+mentor <- c("mentor", "mentorship", "mentors", "mentoring")
 
 employment_text <- filter_func(tidy_text, employment) %>% 
   filter(!str_detect(response, "regular communication with public school employees"),
          !str_detect(response, "more drug enforcement in schools"))
-```
 
-## Parents and caregivers
+mentor_text <- filter_func(tidy_text, mentor)
+```
 
 ```{r caregiver}
 caregivers <- c("parents", "parent", "parental", "parenting", "fathers", "father", "mothers", "mother", "family", "support their families", "home environment", "strong male & female model of good character")
@@ -156,14 +174,18 @@ caregivers_text <- tidy_text %>%
   filter(str_detect(response, paste(caregivers, collapse = "|")))
 ```
 
-## Social Services
-
 ```{r social service}
 services <- c("social services", "student u", "mentoring", "mentor", "mentors", "mentorship", "services", "housing", "clean up the parks", "maintain our parks", "computers and internet", "mental health", "therapy", "bus", "busses", "transit", "poverty", "drive-in", "facilities", "invest in every area", "financial support", "social workers", "food", "transportation", "zoning", "translators", "panhandlers", "juvenile support")
 
 servicesgeneral <- c("social services", "juvenile support", "improve the facilities", "invest in every area", "services", "social workers", "promoting programs")
 
-foodpoverty <- c("poverty", "poor", "food", "lunch", "snack",  "meals", "computers", "internet", "financial support")
+foodpoverty <- c("food", "lunch", "snack", "meal", "poverty", "poor", "impoverished", "financial support")
+
+food <- c("food", "lunch", "snack", "meal")
+
+poverty <- c("poverty", "poor", "impoverished", "financial support")
+
+tech <- c("tech", "internet", "computer")
 
 transit <- c("transit", "transportation", "busses", "bus stop", "bus drivers")
 
@@ -171,32 +193,28 @@ housing <- c("housing", "zoning")
 
 mentalhealth <- c("mental health", "therapy")
 
-mentor <- c("mentor", "mentorship", "mentors", "mentoring")
+services_text <- filter_func(tidy_text, services)
 
-services_text <- tidy_text %>% 
-  filter(str_detect(response, paste(services, collapse = "|")))
+gservices_text <- filter_func(tidy_text, servicesgeneral)
 
-gservices_text <- tidy_text %>% 
-  filter(str_detect(response, paste(servicesgeneral, collapse = "|")))
+poverty_text <- filter_func(tidy_text, poverty)
 
-recreation_text <- tidy_text %>% 
-  filter(str_detect(response, paste(recreation, collapse = "|")))
+food_text <- filter_func(tidy_text, food)
+
+tech_text <- filter_func(tidy_text, tech)
+
+housing_text <- filter_func(tidy_text, housing)
 
 # Refer to comments pushing for less government support
-foodpoverty_text <- tidy_text %>% 
-  filter(str_detect(response, paste(foodpoverty, collapse = "|")),
-         !str_detect(response, "charter schools")) 
 
-transit_text <- tidy_text %>% 
-  filter(str_detect(response, paste(transit, collapse = "|")))
+food_text <- filter_func(tidy_text, food) %>% 
+  filter(!str_detect(response, "charter"))
 
-mentalhealth_text <- tidy_text %>% 
-  filter(str_detect(response, paste(mentalhealth, collapse = "|")))
+transit_text <- filter_func(tidy_text, transit)
 
-mentor_text <- tidy_text %>% 
-  filter(str_detect(response, paste(mentor, collapse = "|")))
+mentalhealth_text <- filter_func(tidy_text, mentalhealth)
 
-services_text %>% 
+unsorted <- services_text %>% 
   filter(!str_detect(response, paste(servicesgeneral, collapse = "|"))) %>% 
   filter(!str_detect(response, paste(recreation, collapse = "|"))) %>% 
   filter(!str_detect(response, paste(foodpoverty, collapse = "|"))) %>% 
@@ -210,9 +228,7 @@ services_text %>%
 
 ```
 
-## Miscellaneous
-
-```{r}
+```{r miscellaneous responses}
 miscellaneous <- tidy_text %>% 
   filter(!str_detect(response, paste(activities, collapse = "|"))) %>% 
   filter(!str_detect(response, paste(caregivers, collapse = "|"))) %>% 
@@ -225,13 +241,205 @@ miscellaneous <- tidy_text %>%
 ```
 
 
-Summary
+## Summary
 
 ```{r summary table}
-tibble(`Themes` = c(`1. Increase/improve funding for public school`,
-                    `2. Subsidizing, fully-funding, or increasing access to pre-kindergarten and early education`,
-                    `3. `,),
-       `Total Mentions` = c(nrow(),
-                            nrow(prek_text))
+tibble(
+  `Themes` = 
+    c("1. Increase funding and improve quality of schools.",
+      "2. Subsidizing, fully-funding, or increasing access to \\\\ pre-kindergarten, childcare, and early education.",
+      "3. Increasing public school teacher salaries and \\\\ attracting/retaining higher quality instructors.",
+      "4. Addressing violence, gangs, and relationships with police.",
+      "5. Increasing and improving after school programs \\\\ and recreational spaces for youth.",
+      "6. Increasing opportunities for youth employment, \\\\ internships, mentorship, and job training.",
+      "7. Increasing funding for services that address food insecurity, \\\\ poverty, and other social inequalities.",
+      "Miscellaneous",
+      "Total [note]"),
+  `Total Mentions` = c(nrow(school_text2),
+                       nrow(prek_text),
+                       nrow(teacher_text),
+                       nrow(safety_text),
+                       nrow(activities_text),
+                       nrow(employment_text) + nrow(mentor_text),
+                       nrow(services_text),
+                       nrow(miscellaneous),
+                       nrow(tidy_text))) %>% 
+  kable(format = "latex", escape = F) %>% 
+  kable_styling(font_size = 13, position = "center", latex_options = "hold_position") %>% 
+  add_footnote("Themed responses do not add up to 383 since some responses satisfied several topics.", notation = "symbol") %>% 
+  column_spec(1, width = "30em")
 ```
+
+\newpage
+
+## Explanations
+
+### 1. Increase funding and improve quality of schools.
+
+```{r table function}
+table_func <- function(df) {
+  temp <- df %>% group_by(page) %>% count() %>% 
+    rename(Page = page,
+           Mentions = n) %>% 
+    ungroup() %>% 
+    add_row(Page = "Total", Mentions = nrow(df)) %>% 
+    kable() %>% 
+    kable_styling(position = "center", 
+                  latex_options = "hold_position")
+  return(temp)
+}
+```
+
+```{r school tabular}
+table_func(school_text2)
+```
+
+- Increasing budget of public education: `r nrow(funding_text)`
+
+- Increasing quality of public education: `r nrow(squality_text)`
+
+- Alternatives to public schools: `r nrow(altschool_text) + 1`
+
+  - Increase City/County support for magnet, private, and charter schools: 9
+  
+  - Decrease funding for charter schools and increase public school: 9
+  
+### 2. Subsidizing, fully-funding, or increasing access to pre-kindergarten, childcare, and early education.
+  
+```{r prek tabular}
+table_func(prek_text)
+```
+
+```{r subset prek}
+prek_only <- c("prek", "pre-k", "pre k", "preschool", "pre?k")
+childcare <- c("childcare", "early childhood", "childhood development", "daycare")
+```
+
+- Public/subsidized/universal pre-k: `r nrow(filter_func(prek_text, prek_only))`
+
+- More public childcare and support for early development: `r nrow(filter_func(prek_text, childcare))`
+
+### 3. Increasing public school teacher salaries and attracting/retaining higher quality instructors.
+
+```{r teachers tabular}
+table_func(teacher_text)
+```
+
+- Improve teacher pay: `r nrow(pay_text)`
+
+- Improve teacher quality: `r nrow(quality_text)`
+
+- Incentives to retain teachers: 8
+
+### 4. Addressing violence, gangs, and relationships with police.
+
+```{r safety tabular}
+table_func(safety_text)
+```
+
+```{r safety subset}
+spaces <- c("space", "place")
+
+police <- c("police", "cop", "officer", "sro")
+```
+
+- Addressing gang violence: `r nrow(safety_text %>% filter(str_detect(response, "gang")))`
+
+- Safety in schools: 6
+  - COVID-19 in schools: 1
+  - Remove police from schools: 2
+  - Increase police presence in schools: 1
+  - Safety in schools: 2
+  
+- Police: 7
+  - Source police in their own neighborhoods: 1
+  - Fund alternatives to policing like social workers: 4
+  - Improve quality of police: 2
+
+- Creating safer spaces for youth: `r nrow(filter_func(safety_text, spaces))`
+
+### 5. Increasing and improving after school programs and recreational spaces for youth.
+
+**Total: `r nrow(afterschool_text)`**
+
+```{r afterschool tabular}
+table_func(afterschool_text)
+```
+
+- Parks and playgrounds: `r nrow(parks_text) - 2`
+  - Improving the quality and safety of parks and playgrounds: 7
+  - Improving access and number of parks and greenspaces: 7
+  
+- More recreational opportunities for youth: `r nrow(recreation_text) - 5`
+
+- After school activities: `r nrow(afterschool_text)`
+
+### 6. Increasing opportunities for youth employment, internships, mentorship, and job training.
+
+```{r employment tabular}
+table_func(employment_text)
+```
+```{r employment subset}
+temp <- c("intern", "apprentice", "training")
+```
+
+- More paid employment opportunities: 
+
+- Internships, apprenticeships, and job training: `r nrow(filter_func(employment_text, temp))`
+
+- Increase number of mentor relationships: `r nrow(mentor_text)`
+
+### 7. Increasing funding for services that address food insecurity, poverty, and other social inequalities.
+
+```{r foodpoverty tabular}
+table_func(services_text)
+```
+
+- Increasing funding for general social services or increasing the number of social workers: `r nrow(gservices_text)`
+
+- Addressing financial insecurity and poverty: `r nrow(poverty_text) - 2`
+
+  - Reducing poverty: 8
+
+  - Less policing in lower income communities: 1
+
+- Addressing food insecurity: `r nrow(food_text)`
+
+  - Increasing access to low cost and healthy foods: 8
+
+  - Providing free breakfasts or lunches to youth in schools: 6
+
+- Addressing housing insecurity: `r nrow(housing_text)`
+
+  - Increasing affordable housing: 9
+  
+  - Improving housing conditions: 2
+  
+  - Less development in downtown Durham: 1
+
+- Creating higher quality and safer public transportation for youth, particularly to school and to after school activities: `r nrow(transit_text)`
+
+- Increasing access to mental health services for youth and their parents: `r nrow(mentalhealth_text)`
+
+- Providing technology to families and youth: `r nrow(tech_text)`
+
+### Miscellaneous 
+
+```{r miscellaneous text}
+clean_misc <- miscellaneous %>% mutate(response = str_replace_all(response, "\\?", ""),
+                         response = str_replace_all(response, "<U+FFFD>", " "),                         response = str_to_sentence(response),
+                         response = str_replace_all(response, "\\b[i]\\s", "I "), 
+                         response = str_replace_all(response,
+                                                    "\\[1]", ""))
+  
+  # 
+  # kable(format = "latex") %>% 
+  # kable_styling(font_size = 7,
+  #               latex_options = "hold_position")
+```
+
+```{r, results = "asis"}
+paste(clean_misc$response)
+```
+
 
