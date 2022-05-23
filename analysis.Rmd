@@ -308,9 +308,9 @@ table_func <- function(df) {
 
 - Increasing quality of public education: `r nrow(squality_text)`
 
-- Alternatives to public schools: `r nrow(altschool_text) + 1`
-
 - Funding public schools more equally/equitably: `r nrow(equaled_text)`
+
+- Alternatives to public schools: `r nrow(altschool_text) + 1`
 
   - Increase City/County support for magnet, private, and charter schools: 9
   
