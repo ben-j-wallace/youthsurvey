@@ -14,7 +14,7 @@ library(kableExtra)
 ```
 
 ```{r include = F}
-raw_text <- readr::read_csv("rss_county2020.csv")
+raw_text <- readr::read_csv("rss2021.csv")
 `%nin%` = Negate(`%in%`)
 knitr::opts_chunk$set(echo = F, message = F)
 options(knitr.table.format = "latex") 
@@ -28,30 +28,8 @@ tidy_text <- raw_text %>%
          response = str_replace_all(response, "�", ""),
          response = str_replace_all(response, "  ", " "),
          response = str_replace_all(response, "\\?", " "),
-         page_actual = page + 26,
-         page = factor(case_when(
-                          page == 1 ~ "First page",
-                          page == 2 ~ "Second page",
-                          page == 3 ~ "Third page",
-                          page == 4 ~ "Fourth page",
-                          page == 5 ~ "Fifth page",
-                          page == 6 ~ "Sixth page",
-                          page == 7 ~ "Seventh page",
-                          page == 8 ~ "Eighth page",
-                          page == 9 ~ "Nineth page",
-                          page == 10 ~ "Tenth page",
-                          page == 11 ~ "Eleventh page",
-                          page == 12 ~ "Twelfth page",
-                          page == 13 ~ "Thirteenth page",
-                          page == 14 ~ "Fourteenth page",
-                          page == 15 ~ "Fifteenth page",
-                          TRUE ~ "Sixteenth page"
-         ),
-         levels = c("First page", "Second page", "Third page",
-                    "Fourth page", "Fifth page", "Sixth page",
-                    "Seventh page", "Eighth page", "Nineth page",
-                    "Tenth page", "Eleventh page", "Twelfth page",
-                    "Thirteenth page", "Fourteenth page", "Fifteenth page", "Sixteenth page")))
+         page_actual = page - 31)
+
   
 words <- tidy_text %>% 
   unnest_tokens(input = response, output = word, token = "words") %>% 
@@ -77,18 +55,23 @@ filter_func <- function(input, vector) {
 ```{r school}
 school <- c("schools", "school", "teacher" ,"teachers", "public-school", "education", "classes", "class", "crt", "educational", "educators", "student", "students", "dps", "homework help", "curriculum", "test scores", "GED", "no child left behind", "gifted children", "special needs")
 
-school2 <- c("school", "education", "dps")
+school2 <- c("school", "education", "dps", "freedom to choose", "special needs")
 
-school_funding <- c("fund", "money", "invest", "underfunded", "support", "resources for schools", "budgets")
+school_funding <- c("fund", "money", "invest", "underfunded", "support", "resources for schools", "budget", "plentiful in school")
 
-school_quality <- c("better public schools", "better schools", "better education", "quality", "improve", "good education", "public school employee")
+school_quality <- c("better public school", "better school", "better education", "quality", "improve", "good education", "public school employee", "crt", "curriculum", "history", "good public edu", "help the school", "focus on school", "good school", "more education", "upgrade")
+
+equal <- c("equal", "same", "open to everyone", "more accessible", "special need")
 
 altschool <- c("charter", "private", "voucher" , "magnet")
+
+class_size <- c("class size", "smaller class", "reduce class", "reduced class")
 
 school_text <- filter_func(tidy_text, school) %>% 
   filter(response != "children should never be given back to parents who have drug/alcohol related problem and should have the potential to grow up in a healthy environment. foster parents should be required to attend parenting classes and children be required to have checkups to make sure they are healthy.")
 
-school_text2 <- filter_func(school_text, school2)
+school_text2 <- filter_func(school_text, school2) %>% 
+  filter(!str_detect(response, "early childhood"))
 
 funding_text <- filter_func(school_text2, school_funding)
 
@@ -97,7 +80,12 @@ squality_text <- filter_func(school_text2, school_quality)
 altschool_text <- filter_func(school_text2, altschool) %>% 
   filter(!str_detect(response, "private partnerships"))
 
-class_text <- school_text2 %>% filter(str_detect(response, "class size"))
+equaled_text <- filter_func(school_text2, equal)
+
+class_text <- filter_func(school_text2, class_size)
+
+# school_text3 <- school_text2 %>%
+#   filter(response %nin% funding_text$response & response %nin% funding_text$response & response %nin% squality_text$response & response %nin% equaled_text$response & response %nin% altschool_text$response & response %nin% class_text$response & response %nin% afterschool_text$response & response %nin% prek_text$response & response %nin% teacher_text$response)
 ```
 
 ```{r teacher}
@@ -123,7 +111,7 @@ quality_text <- teacher_text %>%
 ```
 
 ```{r preschool}
-prek <- c("prek", "pre-k", "pre k", "preschool", "childcare", "early childhood", "childhood development", "pre?k", "daycare")
+prek <- c("prek", "pre-k", "pre k", "preschool", "pre-school", "childcare", "early childhood", "childhood development", "pre?k", "daycare", "early childhood")
 
 prek_text <- tidy_text %>% 
   filter(str_detect(response, paste(prek, collapse = "|")),
@@ -131,10 +119,21 @@ prek_text <- tidy_text %>%
 ```
 
 ```{r safety}
-safety <- c("clean up", "safety", "safer", "safe", "gang", "gangs", "curfew", "crime", "dangerous", "gun violence", "violence", "protection", "enforce existing codes", "enforce laws", "restorative justice", "police", "cops", "drugs", "marijuana", "bad cycle", "supervision", "juvenile support")
+safety <- c("safety", "safer", "safe", "gang", "gangs", "curfew", "crime", "dangerous", "gun", "violence", "protection", "enforce existing codes", "enforce laws", "restorative justice", "police", "cops", "drugs", "marijuana", "bad cycle", "supervision", "juvenile support")
 
-safety_text <- tidy_text %>% 
-  filter(str_detect(response, paste(safety, collapse = "|")))
+safety <- c("safe", "danger", "curfew", "protect")
+
+crime <- c("crime", "danger", "gun")
+
+drug <- c("drug", "marijuana")
+
+safety_text <- filter_func(tidy_text, safety)
+
+crime_text <- filter_func(safety_text, crime)
+
+youthsafety_text <- filter_func(safety_text, safety)
+
+drug_text <- filter_func(safety_text, drug)
 ```
 
 ```{r activity}
@@ -142,7 +141,7 @@ activities <- c("activities", "activity", "recreation", "recreational", "clubs",
 
 parks <- c("park", "parks", "maintain our parks", "clean up the parks", "playground", "outdoors track")
 
-recreation <- c("recreational", "mingling", "clubs", "club", "games", "social events", "social program", "basketball", "athletic", "sport", "sports")
+recreation <- c("recreational", "mingling", "clubs", "club", "games", "social events", "social program", "basketball", "athletic", "sport", "sports", "camp")
 
 afterschool <- c("after school", "school programs", "volunteer", "community involvement", "self-programs", "free programs for teens", "programs to kids", "programs for all kids", "related programs", "programs for school aged children", "youth related programs", "tutoring programs", "programs to keep", "non?academic")
 
@@ -156,7 +155,9 @@ afterschool_text <- filter_func(tidy_text, afterschool)
 ```
 
 ```{r job}
-employment <- c("jobs", "job", "meaningful work", "work habits", "work study", "employment", "apprentice programs")
+employment <- c("jobs", "job", "meaningful work", "work habits", "work study", "employment", "apprentice programs", "mentor")
+
+job <- c("job", "meaningful work", "employment")
 
 mentor <- c("mentor", "mentorship", "mentors", "mentoring")
 
@@ -165,6 +166,8 @@ employment_text <- filter_func(tidy_text, employment) %>%
          !str_detect(response, "more drug enforcement in schools"))
 
 mentor_text <- filter_func(tidy_text, mentor)
+
+paid_text <- filter_func(tidy_text, job)
 ```
 
 ```{r caregiver}
@@ -237,9 +240,14 @@ miscellaneous <- tidy_text %>%
   filter(!str_detect(response, paste(safety, collapse = "|"))) %>% 
   filter(!str_detect(response, paste(school, collapse = "|"))) %>% 
   filter(!str_detect(response, paste(services, collapse = "|"))) %>% 
+  filter(!str_detect(response, paste(recreation, collapse = "|"))) %>% 
   filter(!str_detect(response, "my child starts"))
 ```
 
+## Question
+
+> What can the City and County do to make sure all children
+and youth in Durham reach their full potential and thrive?
 
 ## Summary
 
@@ -249,13 +257,13 @@ tibble(
     c("1. Increase funding and improve quality of schools.",
       "2. Subsidizing, fully-funding, or increasing access to \\\\ pre-kindergarten, childcare, and early education.",
       "3. Increasing public school teacher salaries and \\\\ attracting/retaining higher quality instructors.",
-      "4. Addressing violence, gangs, and relationships with police.",
+      "4. Increasing safety and addressing violence, gangs, and relationships with police.",
       "5. Increasing and improving after school programs \\\\ and recreational spaces for youth.",
       "6. Increasing opportunities for youth employment, \\\\ internships, mentorship, and job training.",
       "7. Increasing funding for services that address food insecurity, \\\\ poverty, and other social inequalities.",
       "Miscellaneous",
       "Total [note]"),
-  `Total Mentions` = c(nrow(school_text2),
+  `Total Mentions` = c(nrow(school_text2) - 7,
                        nrow(prek_text),
                        nrow(teacher_text),
                        nrow(safety_text),
@@ -266,8 +274,8 @@ tibble(
                        nrow(tidy_text))) %>% 
   kable(format = "latex", escape = F) %>% 
   kable_styling(font_size = 13, position = "center", latex_options = "hold_position") %>% 
-  add_footnote("Themed responses do not add up to 383 since some responses satisfied several topics.", notation = "symbol") %>% 
-  column_spec(1, width = "30em")
+  add_footnote("Themed responses do not add up to 481 since responses may satisfy multiple topics.", notation = "symbol") %>% 
+  column_spec(1, width = "25em")
 ```
 
 \newpage
@@ -278,8 +286,8 @@ tibble(
 
 ```{r table function}
 table_func <- function(df) {
-  temp <- df %>% group_by(page) %>% count() %>% 
-    rename(Page = page,
+  temp <- df %>% group_by(page_actual) %>% count() %>% 
+    rename(Page = page_actual,
            Mentions = n) %>% 
     ungroup() %>% 
     add_row(Page = "Total", Mentions = nrow(df)) %>% 
@@ -291,8 +299,10 @@ table_func <- function(df) {
 ```
 
 ```{r school tabular}
-table_func(school_text2)
+# # table_func(school_text2)
 ```
+
+**Total: `r nrow(school_text2) - 7`**
 
 - Increasing budget of public education: `r nrow(funding_text)`
 
@@ -300,20 +310,32 @@ table_func(school_text2)
 
 - Alternatives to public schools: `r nrow(altschool_text) + 1`
 
+- Funding public schools more equally/equitably: `r nrow(equaled_text)`
+
   - Increase City/County support for magnet, private, and charter schools: 9
   
   - Decrease funding for charter schools and increase public school: 9
   
+- Increasing the number of teachers per student/reducing class sizes: `r nrow(class_text)`
+
+- Elevate school curriculum: 6
+
+- Safety in schools: 6 (also see third theme)
+
+- Connections between churches and schools, school prayer: 3
+  
 ### 2. Subsidizing, fully-funding, or increasing access to pre-kindergarten, childcare, and early education.
   
 ```{r prek tabular}
-table_func(prek_text)
+# table_func(prek_text)
 ```
 
 ```{r subset prek}
 prek_only <- c("prek", "pre-k", "pre k", "preschool", "pre?k")
 childcare <- c("childcare", "early childhood", "childhood development", "daycare")
 ```
+
+**Total: `r nrow(prek_text)`**
 
 - Public/subsidized/universal pre-k: `r nrow(filter_func(prek_text, prek_only))`
 
@@ -322,8 +344,10 @@ childcare <- c("childcare", "early childhood", "childhood development", "daycare
 ### 3. Increasing public school teacher salaries and attracting/retaining higher quality instructors.
 
 ```{r teachers tabular}
-table_func(teacher_text)
+# table_func(teacher_text)
 ```
+
+**Total: `r nrow(teacher_text)`**
 
 - Improve teacher pay: `r nrow(pay_text)`
 
@@ -331,10 +355,10 @@ table_func(teacher_text)
 
 - Incentives to retain teachers: 8
 
-### 4. Addressing violence, gangs, and relationships with police.
+### 4. Improving safety and addressing violence, gangs, and relationships with police.
 
 ```{r safety tabular}
-table_func(safety_text)
+# table_func(safety_text)
 ```
 
 ```{r safety subset}
@@ -343,7 +367,17 @@ spaces <- c("space", "place")
 police <- c("police", "cop", "officer", "sro")
 ```
 
+**Total: `r nrow(safety_text)`**
+
+- General safety of youth: `r nrow(youthsafety_text)`
+
+  - Creating safe spaces for youth: `r nrow(filter_func(safety_text, spaces))`
+
 - Addressing gang violence: `r nrow(safety_text %>% filter(str_detect(response, "gang")))`
+
+- Reducing violent crime: `r nrow(crime_text)`
+
+- Reducing drug abuse: `r nrow(drug_text)`
 
 - Safety in schools: 6
   - COVID-19 in schools: 1
@@ -356,14 +390,12 @@ police <- c("police", "cop", "officer", "sro")
   - Fund alternatives to policing like social workers: 4
   - Improve quality of police: 2
 
-- Creating safer spaces for youth: `r nrow(filter_func(safety_text, spaces))`
-
 ### 5. Increasing and improving after school programs and recreational spaces for youth.
 
 **Total: `r nrow(afterschool_text)`**
 
 ```{r afterschool tabular}
-table_func(afterschool_text)
+# table_func(afterschool_text)
 ```
 
 - Parks and playgrounds: `r nrow(parks_text) - 2`
@@ -377,13 +409,15 @@ table_func(afterschool_text)
 ### 6. Increasing opportunities for youth employment, internships, mentorship, and job training.
 
 ```{r employment tabular}
-table_func(employment_text)
+# table_func(employment_text)
 ```
 ```{r employment subset}
 temp <- c("intern", "apprentice", "training")
 ```
 
-- More paid employment opportunities: 
+**Total: `r nrow(employment_text)`**
+
+- More paid employment opportunities: `r nrow(paid_text)`
 
 - Internships, apprenticeships, and job training: `r nrow(filter_func(employment_text, temp))`
 
@@ -391,8 +425,10 @@ temp <- c("intern", "apprentice", "training")
 
 ### 7. Increasing funding for services that address food insecurity, poverty, and other social inequalities.
 
+**Total: `r nrow(services_text)`**
+
 ```{r foodpoverty tabular}
-table_func(services_text)
+# table_func(services_text)
 ```
 
 - Increasing funding for general social services or increasing the number of social workers: `r nrow(gservices_text)`
